@@ -5,6 +5,8 @@ import hashlib
 from datetime import datetime
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import logging
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -42,7 +44,7 @@ def main():
     client = MongoClient(MONGO_URI)
     db = client[DB_NAME]
     collection = db["documents"]
-    
+    logger.info("Connected to MongoDB.")
     doc = {
         "user_id": "user_123",
         "filename": filename,
@@ -52,11 +54,23 @@ def main():
         "status": "uploaded",
         "metadata": {}
     }
-    
+    logger.info("Inserting document metadata into MongoDB.")
     result = collection.insert_one(doc)
+    document_id = result.inserted_id
+    jobs = db["processing_jobs"]
+    jobs.insert_one({
+        "document_id": document_id,
+        "status": "queued",
+        "created_at": datetime.now(),
+        "error_message": None,
+        "started_at": None,
+        "completed_at": None
+    })
+    logger.info("Created processing job for document ID %s", document_id)
+    print("Job created for processing.")
     print("Inserted document ID:", result.inserted_id)
     print("File's hash:", file_hash)
-    
+    # print(jobs.find_one({"document_id": document_id}))
 if __name__ == "__main__":
     main()
     
